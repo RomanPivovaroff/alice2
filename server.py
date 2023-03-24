@@ -13,15 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 answer = ''
 flag = False
-cities = {
-    'москва': ['1540737/daa6e420d33102bf6947',
-               '213044/7df73ae4cc715175059e'],
-    'нью-йорк': ['1652229/728d5c86707054d4745f',
-                 '1030494/aca7ed7acefde2606bdc'],
-    'париж': ["1652229/f77136c2364eb90a3ea8",
-              '3450494/aca7ed7acefde22341bdc']
-}
-
+cities = {}
 # создаем словарь, где для каждого пользователя
 # мы будем хранить его имя
 sessionStorage = {}
@@ -43,11 +35,19 @@ def main():
 
 
 def handle_dialog(res, req):
-    global flag, answer, cities
+    global flag, answer
     user_id = req['session']['user_id']
 
     # если пользователь новый, то просим его представиться.
     if req['session']['new']:
+        sessionStorage[user_id]['cities'] = {
+            'москва': ['1540737/daa6e420d33102bf6947',
+                       '213044/7df73ae4cc715175059e'],
+            'нью-йорк': ['1652229/728d5c86707054d4745f',
+                         '1030494/aca7ed7acefde2606bdc'],
+            'париж': ["1652229/f77136c2364eb90a3ea8",
+                      '3450494/aca7ed7acefde22341bdc']
+        }
         res['response']['text'] = 'Привет! Назови свое имя!'
         # создаем словарь в который в будущем положим имя пользователя
         sessionStorage[user_id] = {
@@ -73,37 +73,37 @@ def handle_dialog(res, req):
                 'text'] = 'Приятно познакомиться, ' \
                           + first_name.title() \
                           + '. Я - Алиса. отгадаешь город по фото?'
-            # получаем варианты buttons из ключей нашего словаря cities
-            '''
-            res['response']['buttons'] = [
-                {
-                    'title': city.title(),
-                    'hide': True
-                } for city in cities
-            ]'''
+            # получаем варианты buttons из ключей нашего словаря citie
     # если мы знакомы с пользователем и он нам что-то написал,
     # то это говорит о том, что он уже говорит о городе,
     # что хочет увидеть.
-    if 'нет' in req['response']['original_utterance']:
+    if 'нет' in req['request']['original_utterance']:
         res['response']['end_session'] = True
+        res['response']['text'] = 'Прощайте, спасибо за игру!'
         return
-    if 'да' in req['response']['original_utterance']:
-        if len(cities) == 0:
+    if 'да' in req['request']['original_utterance']:
+        if len(sessionStorage[user_id]['cities']) == 0:
             res['response']['end_session'] = True
+            res['response']['text'] = 'Прощайте, спасибо за игру!'
             return
         else:
-            city = random.choice(list(cities.keys()))
+            city = random.choice(list(sessionStorage[user_id]['cities'].keys()))
             while True:
-                if len(cities[city]) == 0:
-                    del cities[city]
+                if len(sessionStorage[user_id]['cities'][city]) == 0:
+                    del sessionStorage[user_id]['cities'][city]
                 else:
                     break
             res['response']['card'] = {}
             res['response']['card']['type'] = 'BigImage'
             res['response']['card']['title'] = 'что это за город?'
-            res['response']['card']['image_id'] = cities[city].pop(random.randint(0, 1))
+            res['response']['card']['image_id'] = sessionStorage[user_id]['cities'][city].pop(random.randint(0, 1))
             res['response']['text'] = 'Я угадал!'
-
+            res['response']['buttons'] = [
+                {
+                    'title': city.title(),
+                    'hide': True
+                } for city in sessionStorage[user_id]['cities']
+            ]
             flag = True
             answer = city
     if flag:
@@ -113,21 +113,30 @@ def handle_dialog(res, req):
         # то показываем его (выбираем одну из двух картинок случайно)
         # если не нашел, то отвечает пользователю
         # 'Первый раз слышу об этом городе.'
-        if city == answer:
-            res['response']['text'] = 'Правильно! сыграем ещё?'
-            flag = False
-            del cities[city]
-        else:
-            if len(cities[city]) == 0:
+        if city in sessionStorage[user_id]['cities']:
+            if city == answer:
+                res['response']['text'] = 'Правильно! сыграем ещё?'
                 flag = False
-                res['response']['text'] = f'вы пытались, это {city}, сыграем ещё?'
-                del cities[city]
+                del sessionStorage[user_id]['cities'][city]
             else:
-                res['response']['card'] = {}
-                res['response']['card']['type'] = 'BigImage'
-                res['response']['card']['title'] = 'что это за город?'
-                res['response']['card']['image_id'] = cities[city].pop()
-                res['response']['text'] = 'Я угадал!'
+                if len(sessionStorage[user_id]['cities'][city]) == 0:
+                    flag = False
+                    res['response']['text'] = f'вы пытались, это {city}, сыграем ещё?'
+                    del sessionStorage[user_id]['cities'][city]
+                else:
+                    res['response']['card'] = {}
+                    res['response']['card']['type'] = 'BigImage'
+                    res['response']['card']['title'] = 'что это за город?'
+                    res['response']['card']['image_id'] = sessionStorage[user_id]['cities'][city].pop(0)
+                    res['response']['text'] = 'Я угадал!'
+                    res['response']['buttons'] = [
+                        {
+                            'title': city.title(),
+                            'hide': True
+                        } for city in sessionStorage[user_id]['cities']
+                    ]
+        else:
+            res['response']['text'] = 'назовите город!'
 
 
 
