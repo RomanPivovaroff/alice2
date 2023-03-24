@@ -11,6 +11,8 @@ logging.basicConfig(level=logging.INFO)
 # а значение — массив, где перечислены id картинок,
 # которые мы записали в прошлом пункте.
 
+answer = ''
+flag = False
 cities = {
     'москва': ['1540737/daa6e420d33102bf6947',
                '213044/7df73ae4cc715175059e'],
@@ -41,6 +43,7 @@ def main():
 
 
 def handle_dialog(res, req):
+    global flag, answer, cities
     user_id = req['session']['user_id']
 
     # если пользователь новый, то просим его представиться.
@@ -69,33 +72,63 @@ def handle_dialog(res, req):
             res['response'][
                 'text'] = 'Приятно познакомиться, ' \
                           + first_name.title() \
-                          + '. Я - Алиса. Какой город хочешь увидеть?'
+                          + '. Я - Алиса. отгадаешь город по фото?'
             # получаем варианты buttons из ключей нашего словаря cities
+            '''
             res['response']['buttons'] = [
                 {
                     'title': city.title(),
                     'hide': True
                 } for city in cities
-            ]
+            ]'''
     # если мы знакомы с пользователем и он нам что-то написал,
     # то это говорит о том, что он уже говорит о городе,
     # что хочет увидеть.
-    else:
+    if 'нет' in req['response']['original_utterance']:
+        res['response']['end_session'] = True
+        return
+    if 'да' in req['response']['original_utterance']:
+        if len(cities) == 0:
+            res['response']['end_session'] = True
+            return
+        else:
+            city = random.choice(list(cities.keys()))
+            while True:
+                if len(cities[city]) == 0:
+                    del cities[city]
+                else:
+                    break
+            res['response']['card'] = {}
+            res['response']['card']['type'] = 'BigImage'
+            res['response']['card']['title'] = 'что это за город?'
+            res['response']['card']['image_id'] = cities[city].pop(random.randint(0, 1))
+            res['response']['text'] = 'Я угадал!'
+
+            flag = True
+            answer = city
+    if flag:
         # ищем город в сообщение от пользователя
         city = get_city(req)
         # если этот город среди известных нам,
         # то показываем его (выбираем одну из двух картинок случайно)
-        if city in cities:
-            res['response']['card'] = {}
-            res['response']['card']['type'] = 'BigImage'
-            res['response']['card']['title'] = 'Этот город я знаю.'
-            res['response']['card']['image_id'] = random.choice(cities[city])
-            res['response']['text'] = 'Я угадал!'
         # если не нашел, то отвечает пользователю
         # 'Первый раз слышу об этом городе.'
+        if city == answer:
+            res['response']['text'] = 'Правильно! сыграем ещё?'
+            flag = False
+            del cities[city]
         else:
-            res['response']['text'] = \
-                'Первый раз слышу об этом городе. Попробуй еще разок!'
+            if len(cities[city]) == 0:
+                flag = False
+                res['response']['text'] = f'вы пытались, это {city}, сыграем ещё?'
+                del cities[city]
+            else:
+                res['response']['card'] = {}
+                res['response']['card']['type'] = 'BigImage'
+                res['response']['card']['title'] = 'что это за город?'
+                res['response']['card']['image_id'] = cities[city].pop()
+                res['response']['text'] = 'Я угадал!'
+
 
 
 def get_city(req):
