@@ -13,7 +13,14 @@ logging.basicConfig(level=logging.INFO)
 
 answer = ''
 flag = False
-cities = {}
+cities = {
+    'москва': ['1540737/daa6e420d33102bf6947',
+               '213044/7df73ae4cc715175059e'],
+    'нью-йорк': ['1652229/728d5c86707054d4745f',
+                 '1030494/aca7ed7acefde2606bdc'],
+    'париж': ["1652229/f77136c2364eb90a3ea8",
+              '3450494/aca7ed7acefde22341bdc']
+}
 # создаем словарь, где для каждого пользователя
 # мы будем хранить его имя
 sessionStorage = {}
@@ -40,6 +47,11 @@ def handle_dialog(res, req):
 
     # если пользователь новый, то просим его представиться.
     if req['session']['new']:
+        res['response']['text'] = 'Привет! Назови свое имя!'
+        # создаем словарь в который в будущем положим имя пользователя
+        sessionStorage[user_id] = {
+            'first_name': None
+        }
         sessionStorage[user_id]['cities'] = {
             'москва': ['1540737/daa6e420d33102bf6947',
                        '213044/7df73ae4cc715175059e'],
@@ -47,11 +59,6 @@ def handle_dialog(res, req):
                          '1030494/aca7ed7acefde2606bdc'],
             'париж': ["1652229/f77136c2364eb90a3ea8",
                       '3450494/aca7ed7acefde22341bdc']
-        }
-        res['response']['text'] = 'Привет! Назови свое имя!'
-        # создаем словарь в который в будущем положим имя пользователя
-        sessionStorage[user_id] = {
-            'first_name': None
         }
         return
 
@@ -80,11 +87,27 @@ def handle_dialog(res, req):
     if 'нет' in req['request']['original_utterance']:
         res['response']['end_session'] = True
         res['response']['text'] = 'Прощайте, спасибо за игру!'
+        sessionStorage[user_id]['cities'] = {
+            'москва': ['1540737/daa6e420d33102bf6947',
+                       '213044/7df73ae4cc715175059e'],
+            'нью-йорк': ['1652229/728d5c86707054d4745f',
+                         '1030494/aca7ed7acefde2606bdc'],
+            'париж': ["1652229/f77136c2364eb90a3ea8",
+                      '3450494/aca7ed7acefde22341bdc']
+        }
         return
     if 'да' in req['request']['original_utterance']:
         if len(sessionStorage[user_id]['cities']) == 0:
             res['response']['end_session'] = True
             res['response']['text'] = 'Прощайте, спасибо за игру!'
+            sessionStorage[user_id]['cities'] = {
+                'москва': ['1540737/daa6e420d33102bf6947',
+                           '213044/7df73ae4cc715175059e'],
+                'нью-йорк': ['1652229/728d5c86707054d4745f',
+                             '1030494/aca7ed7acefde2606bdc'],
+                'париж': ["1652229/f77136c2364eb90a3ea8",
+                          '3450494/aca7ed7acefde22341bdc']
+            }
             return
         else:
             city = random.choice(list(sessionStorage[user_id]['cities'].keys()))
@@ -127,7 +150,7 @@ def handle_dialog(res, req):
                     res['response']['card'] = {}
                     res['response']['card']['type'] = 'BigImage'
                     res['response']['card']['title'] = 'что это за город?'
-                    res['response']['card']['image_id'] = sessionStorage[user_id]['cities'][city].pop(0)
+                    res['response']['card']['image_id'] = sessionStorage[user_id]['cities'][answer].pop(0)
                     res['response']['text'] = 'Я угадал!'
                     res['response']['buttons'] = [
                         {
